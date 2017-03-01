@@ -1,0 +1,56 @@
+My First Markdown File
+======================
+
+This is my first R markdown file
+``` {r setoptions,echo=FALSE}
+opts_chunk$set(echo=FALSE, results="hide")
+
+```
+
+
+
+Let's load some data!
+
+```{r}
+library(datasets)
+data(airquality)
+
+summary(airquality)
+```
+
+
+Let's first make a pairs plot of the data!
+
+```{r echo=FALSE, fig.height=4}
+pairs(airquality)
+```
+
+
+Let's do a regression model to Ozone on Wind, Solar radiation and temprature
+```{r chche=TRUE}
+fit <- lm(Ozone ~ Wind + Solar.R + Temp, data=airquality)
+summary(fit)
+```
+Show summary using html
+```{r results="asis"}
+library(xtable)
+xt <- xtable(summary(fit))
+print(xt, type="html")
+```
+
+
+
+Here is a list
+
+* first item
+
+* second item
+
+* third item
+
+Time example:
+```{r echo=FALSE}
+time <- format(Sys.time(), "%a %b %d %X %Y")
+rand <- rnorm(1)
+```
+Now the time is `r time` and my favorate random number is `r rand`

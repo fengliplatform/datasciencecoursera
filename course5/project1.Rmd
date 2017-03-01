@@ -1,0 +1,104 @@
+# Course Project 1
+
+## Show any code that is needed to
+
+```{r echo = TRUE}
+setwd("~/course/ds_coursera/course5/project1/RepData_PeerAssessment1")
+unzip("activity.zip")
+df <- read.csv("activity.csv", header=TRUE, na.strings="NA")
+
+total.days <- length(unique(df$date))
+total.days
+
+intervals.per.day <- length(unique(df$interval))
+intervals.per.day
+
+```
+
+## What is mean total number of steps taken per day?
+
+```{r echo = TRUE}
+steps.by.day <- aggregate(steps ~ date, data=df, FUN=sum)
+str(steps.by.day)
+hist(steps.by.day$steps)
+mymean <- mean(steps.by.day$steps)
+mymean
+mymedian <- median(steps.by.day$steps)
+mymedian
+
+```
+The mean of total number of steps taken per day is `r mymean`.
+
+## What is the average daily activity pattern?
+We will get the steps from the same interval across all days and average them. And we'll plot using a line chart to see what is the steps pattern through out a day.
+```{r echo = TRUE}
+steps.mean.by.interval <- aggregate(steps~interval, data=df, mean, na.rm=TRUE)
+ggplot(steps.mean.by.interval, aes(interval, steps)) + 
+    geom_line() +
+    ggtitle("Average steps by intervals through out a day") +
+    xlab("Intervals") +
+    ylab("Steps")
+    
+```
+
+## Imputing missing values
+
+### Note that there are a number of days/intervals where there are missing values (coded as NA). The presence of missing days may introduce bias into some calculations or summaries of the data.
+
+Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NAs)
+```{r echo = TRUE}
+anyNA(df$steps)
+anyNA(df$date)
+anyNA(df$interval)
+
+na.vector <- is.na(df$steps)
+na.number <- sum(na.vector)
+na.number
+na.percentage <- mean(na.vector)
+na.percentage
+
+```
+Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.
+```{r echo = TRUE}
+# find our how mnay NAs: group by date + summarize
+steps.group.by.date <- group_by(df, date)
+na.number.summarize.by.date <- summarize(steps.group.by.date, na.number=sum(is.na(steps)))
+na.number.summarize.by.date <- as.data.frame(na.number.summarize.by.date)
+na.number.summarize.by.date
+table(na.number.summarize.by.date$na.number)
+
+na.days <- which(na.number.summarize.by.date$na.number == 288)
+na.days
+na.date <- as.character(na.number.summarize.by.date[na.days, "date"])
+class(na.date)
+na.date
+
+# calculate mean for each interval across all days
+mean.by.interval <- aggregate(steps~interval, data=df, mean, na.rm=TRUE)
+mean.by.interval
+class(mean.by.interval)
+str(mean.by.interval)
+
+# mutate
+df2 <- mutate(df, mymutate=ifelse(is.na(steps), mean.by.interval$steps, steps))
+df2
+df2$mymutate <- round(df2$mymutate)
+df2$steps <- df2$mymutate
+df2 <- df2[,-4]
+
+anyNA(df2)
+
+```
+
+Create a new dataset that is equal to the original dataset but with the missing data filled in.
+Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps?
+
+```{r echo = TRUE}
+steps.by.day2 <- aggregate(steps ~ date, data=df2, FUN=sum)
+str(steps.by.day2)
+hist(steps.by.day2$steps)
+mymean2 <- mean(steps.by.day2$steps)
+mymean2
+mymedian2 <- median(steps.by.day2$steps)
+mymedian2
+```
