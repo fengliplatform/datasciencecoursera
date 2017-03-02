@@ -7,7 +7,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Summary
+## Synopsis
 
 Storms and other severe weather events can cause both public health and economic problems for communities and municipalities. Many severe events can result in fatalities, injuries, and property damage, and preventing such outcomes to the extent possible is a key concern.
 
@@ -19,15 +19,143 @@ This data analysis will address the following questions:
 2. Across the United States, which types of events have the greatest economic consequences?
 
 ## Data Processing
-
+First, load storm data
 ```{r cache = TRUE}
-setwd("~/course/ds_coursera/course5")
-stormdata <- read.csv("repdata_data_StormData.csv")
+if (! file.exists("repdata_data_StormData.csv.bz2")) {
+    download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2", 
+                  destfile = "repdata_data_StormData.csv.bz2")
+}
+stormdata <- read.csv(bzfile("repdata_data_StormData.csv.bz2"))
 ```
 
+As the questions are about types of events, we'll take a quick look at EVTYPE now:
+```{r}
+event.number <- nrow(stormdata)
+event.type.number <- length(levels(stormdata$EVTYPE))
+sum(is.na(stormdata$EVTYPE) | stormdata$EVTYPE == "")
+```
+So we know there are total **`r event.number`** events recored in this data set and there are **`r event.type.number`** types of events. And there is no missing values in event type column.
+
+
+### First question: Across the United States, which types of events (as indicated in the EVTYPE variable) are most harmful with respect to population health?
+To answer the first question, we'll need to define what is "most harmful with respect to population health". Based on the understanding to the documentation, here we'll use the sum of FATALITIES and INJURIES in one event to assess this harmfulness. We'll add up all the events by event type in this data set to get the most harmful event type over the years.  
+
+Let's check if there are any missing values to these two columns -- it turns our no missing values. Great!
+```{r}
+sum(is.na(stormdata$FATALITIES) | stormdata$FATALITIES == "")
+sum(is.na(stormdata$INJURIES) | stormdata$INJURIES == "")
+```
+
+So we'll calculate sum of FATALITIES and INJURIES by event types. After that we'll order the results by descreasing order so the most harmful types of events will be on top of the list. We listed the first 10 of them.
+```{r}
+library(dplyr)
+
+stormdata1 <- select(stormdata, EVTYPE, FATALITIES, INJURIES)
+stormdata1 <- mutate(stormdata1, population.health = FATALITIES + INJURIES)
+population.health.agg <- aggregate(population.health~EVTYPE, data=stormdata1, FUN=sum)
+population.health.agg.order <- population.health.agg[order(population.health.agg$population.health, decreasing = TRUE),]
+
+top10.to.population.health <- population.health.agg.order[1:10,]
+rownames(top10.to.population.health) <- c(1:10)
+top10.to.population.health
+```
+
+### Second question: Across the United States, which types of events have the greatest economic consequences?
+To answer the second question, we'll need to define what is "have the greatest economic consequencesh". Based on the understanding to the documentation, there are four columns that should be considered: PROPDMG, PROPDMGEXP, CROPDMG, CROPDMGEXP. So *DMG is the number part of economic damege and *DMGEXP is the exponent part. We'll add property damege and crop damege to assess economic damege We'll also need to add up all the events by event type to get the most harmful event type over the years.  
+
+Again, let's check the columns for missing values first.
+```{r}
+sum(is.na(stormdata$PROPDMG) | stormdata$PROPDMG == "")
+sum(is.na(stormdata$CROPDMG) | stormdata$CROPDMG == "")
+sum(is.na(stormdata$PROPDMGEXP) | stormdata$PROPDMGEXP == "")
+sum(is.na(stormdata$CROPDMGEXP) | stormdata$CROPDMGEXP == "")
+
+missing.propdmgexp.percentage <- mean(is.na(stormdata$PROPDMGEXP) | stormdata$PROPDMGEXP == "")
+missing.propdmgexp.percentage
+missing.propdmgexp.percentage <- round(missing.propdmgexp.percentage *10)
+missing.cropdmgexp.percentage <- mean(is.na(stormdata$CROPDMGEXP) | stormdata$CROPDMGEXP == "")
+missing.cropdmgexp.percentage
+missing.cropdmgexp.percentage <- round(missing.cropdmgexp.percentage * 10)
+```
+Oh, we found quite a few missing data from PROPDMGEXP and CROPDMGEXP. **`r missing.propdmgexp.percentage`**% property damege exponent data are missing and **`r missing.cropdmgexp.percentage`**% crop damege exponent data are missing. Thoese are **a lot** of missing values!
+
+So in this course project, we just exclude the observations with missing values.
+```{r}
+stormdata2 <- select(stormdata, EVTYPE, PROPDMG, PROPDMGEXP, CROPDMG,CROPDMGEXP)
+stormdata2 <- stormdata2[stormdata2$PROPDMGEXP != "" & stormdata2$CROPDMGEXP != "",]
+```
+
+In terms of valid exponent value, we only accept number 0-9 and h|H: hundred, k|K: thousand, m|M: million and b|B: billion. We'll remove other records for now. After that, we'll calculate economic damege as a sum of property damege and crop damege. Finally top 10 of the types of events causing most economic damege are generated.
+```{r}
+valid.exp <- c("0","1","2","3","4","5","6","7","8","9","b","B","k","K","m","M","h","H")
+stormdata2$PROPDMGEXP <- as.character(stormdata2$PROPDMGEXP)
+stormdata2$CROPDMGEXP <- as.character(stormdata2$CROPDMGEXP)
+stormdata2 <- stormdata2[stormdata2$PROPDMGEXP %in% valid.exp & stormdata2$CROPDMGEXP %in% valid.exp,]
+
+stormdata2$PROPDMGEXP <- tolower(stormdata2$PROPDMGEXP)
+stormdata2$CROPDMGEXP <- tolower(stormdata2$CROPDMGEXP)
+
+stormdata2$PROPDMGEXP[stormdata2$PROPDMGEXP == "b"] <- "9"
+stormdata2$PROPDMGEXP[stormdata2$PROPDMGEXP == "m"] <- "6"
+stormdata2$PROPDMGEXP[stormdata2$PROPDMGEXP == "k"] <- "3"
+stormdata2$CROPDMGEXP[stormdata2$CROPDMGEXP == "b"] <- "9"
+stormdata2$CROPDMGEXP[stormdata2$CROPDMGEXP == "m"] <- "6"
+stormdata2$CROPDMGEXP[stormdata2$CROPDMGEXP == "k"] <- "3"
+
+stormdata2$PROPDMGEXP <- as.integer(stormdata2$PROPDMGEXP)
+stormdata2$CROPDMGEXP <- as.integer(stormdata2$CROPDMGEXP)
+
+stormdata2$economy.damege <- stormdata2$PROPDMG * 10 ^ stormdata2$PROPDMGEXP + stormdata2$CROPDMG * 10 ^ stormdata2$CROPDMGEXP
+
+stormdata2.agg <- aggregate(economy.damege~EVTYPE, data=stormdata2, FUN=sum)
+
+stormdata2.agg <- stormdata2.agg[order(stormdata2.agg$economy.damege, decreasing = TRUE),]
+top10.to.economy.damege <- head(stormdata2.agg[,c("EVTYPE", "economy.damege")],10)
+rownames(top10.to.economy.damege) <- c(1:10)
+top10.to.economy.damege
+```
+
+
 ## Results
+We've found the top 10 harmful types of events for population health and economic damege. 
 
-You can also embed plots, for example:
+Following are top 10 harmful types of events for population health:
+```{r}
+top10.to.population.health
+```
+
+Following are top 10 harmful types of events for economic damege:
+```{r}
+top10.to.economy.damege
+```
 
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+Now let's plot them to have a clear look!
+
+Following figure shows the top 10 harmful types of events for population health:
+```{r}
+library(ggplot2)
+ggplot(top10.to.population.health, aes(x=reorder(EVTYPE,population.health), y=population.health)) +
+    geom_bar(stat="identity") +
+    coord_flip() +
+    xlab("Types of Events") +
+    ylab("Harmfulness to Population Health") +
+    ggtitle("Top 10 harmful types of events to population health")
+```
+
+Following figure shows the top 10 harmful types of events for economic damege:
+```{r}
+ggplot(top10.to.economy.damege, aes(x=reorder(EVTYPE,economy.damege), y=economy.damege)) +
+    geom_bar(stat="identity") +
+    coord_flip() +
+    xlab("Types of Events") +
+    ylab("Harmfulness to economy damege") +
+    ggtitle("Top 10 harmful types of events to economic damege")
+
+
+```
+
+
+
+
+
