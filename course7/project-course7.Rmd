@@ -1,0 +1,167 @@
+---
+title: "Course 7 project"
+author: "Feng Li"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Executive Summary
+
+This project assumes that you work for Motor Trend, a magazine about the automobile industry. Looking at a data set (mtcars from datasets library) of a collection of cars, they are interested in exploring the relationship between a set of variables and miles per gallon (MPG) (outcome). They are particularly interested in the following two questions:
+
+1. "Is an automatic or manual transmission better for MPG"
+2. "Quantify the MPG difference between automatic and manual transmissions"
+
+The purpose of this project report is to address above two questions use the knowledge from course 7 regression models.
+
+## Load data and have a quick look
+First load the data.
+```{r}
+library(datasets)
+data(mtcars)
+```
+
+## Question 1: "Is an automatic or manual transmission better for MPG"
+Recall exploratory analysis approaches, we'll do a data summary and two plots - boxplot and scatter plot to miles per gallon(mpg) versus transmission type(am).
+```{r}
+library(ggplot2)
+table(mtcars$am)
+
+summary(mtcars$mpg[mtcars$am ==0])
+summary(mtcars$mpg[mtcars$am ==1])
+
+mpg.a <- mtcars$mpg[mtcars$am == 0]
+mpg.m <- mtcars$mpg[mtcars$am == 1]
+mtcars$am   <- factor(mtcars$am,labels=c("Automatic","Manual"))
+g <- ggplot(mtcars, aes(x=am, y=mpg, fill=am))
+g1 <- g + geom_boxplot() + 
+    geom_hline(aes(yintercept=mean(mpg.a)), linetype="dashed") + 
+    geom_hline(aes(yintercept=mean(mpg.m)), linetype="dashed") +
+    ylab("Miles Per Gallon") +
+    xlab("Transmission Type")
+g1
+```
+
+
+From above analysis, we know in this dataset, we have 19 automatic transmission cars and 13 manual transmission cars. the mpg mean value of automatic transmisison cars is 17.15mile/gallon which is less than manual transmission cars 24.39mile/gallon. 
+
+So to the first question, overall automatic transmission is better for MPG.  From boxplot, we can clearly see this comparison.  
+
+
+## Question 2: "Quantify the MPG difference between automatic and manual transmissions"
+
+### 1. Statistical inference with a t test 
+Do a t test to mpg for automatic cars and mpg for manual cars. From this, we'll know if there is a significant change to mpg when transmission changes from automatic to manual.
+So the H0 is mu =0 which means no change. We'll check if we can reject.
+```{r}
+t.test(mpg.a, mpg.m, paired=F, var.equal = F)
+```
+
+Ok, so from p-value (0.001374) is far less than 0.05, we can tell that we are able to reject null hypothesis which means mpg has significant difference between automatic and manual transmissions. 
+
+### 2. Regression models analysis.
+
+#### 2.1 First, single variable model. We'll apply linear models to mpg as outcome and am as predictor like following
+```{r}
+fit.one <- lm(mpg ~ am, data=mtcars)
+summary(fit.one)$coefficients
+```
+
+So we only see amManual varialbel listed in coefficient list. This is because am is categorical variable. In this case, R automatically takes one level of am as reference line or base line for coefficient analysis. Here amAutomatic is the baseline. the coefficient and pvalue of amManual is a comparison to amAutomatic. 
+
+This is exactly we want to answer the second question about the mpg difference between amAutomatic and amManual.
+
+From output, we can tell following information:  
+1. The intercept 17.147 is the mean of of mpg from automatic transmission. This is reference line.  
+2. The coefficient of amManual is in a comparison to amAutomatic of the means from the two group. The 7.245 is the change of the mpg mean between amAutomatic and amManual (amManual - amAutomatic). If you want a mean of amManual, it'll be 17.147 + 7.245 = 24.392.  
+3. p-value of amManual 0.000285 is to test whether or not amManual is different from amAutomatic. We can tell a significant difference as it's much less than 0.05.  
+
+As we know from model selection, if we omitted the variables that should have been included in the model, out model ends up bias. So we'll try to add more variables to the single variable model. But including unnecessary variables will cause variance inflation. We'll need to find a best way through statistical analysis.
+
+#### 2.2 Second, consider more variales for better models.
+
+As we know, a third variable can distort, or confound the relationship amonge two existing ones. What we want is to add those who would contribute instead those are unnecessary or distracted. This is a dynamic process and would cost lots of effort to do residual plot and diagnostics analysis to choose the best models.
+
+In this project report, we'll do analysis to two models as following.
+
+- First, we'll use nested likelihood ratio test to do multiple models with additional predictors. We try to find a best model . There are multiple ways to do this. The following is one of my tests:  
+```{r}
+fit.two <- lm(mpg ~ am + hp, data=mtcars)
+fit.three <- lm(mpg ~ am + hp + wt, data=mtcars)
+fit.four <- lm(mpg ~ am + hp + wt + qsec, data=mtcars)
+fit.five <- lm(mpg ~ am + hp + wt + qsec + cyl, data=mtcars)
+
+anova(fit.one, fit.two, fit.three, fit.four, fit.five)
+
+fit.chosen <- fit.four
+```
+We can see from p-value that fit.two makes significant difference from fit.one and fit.three makes significant difference from fit.two. So we are getting better addming variables. fit.four has 0.081250 p-value compared to fit.three, it's larger than 0.05 but really close. so we try one more fit.five. But we can see fit.five is not improving much anymore. 
+
+So we tend to use fit.four as our best model.
+
+Now let's do residuals plot and dfbetas and hatvalues checking to model fit.four.
+
+```{r}
+summary(fit.chosen)
+
+par(mfrow=c(2,2))
+plot(fit.chosen)
+par(mfrow=c(1,1))
+
+# check out liers with high residuals
+sort(round(dfbetas(fit.chosen)[,2], 3))
+# check leverage points
+sort(round(hatvalues(fit.chosen),3))
+```
+The following are the understanding to above plot and brief dignostic analysis:  
+1. From residuals-fitted value plot, we don't significant pattern with only a bit curve. Which is good.
+2. From QQ plot, it looks a normal distribution. It's good too.
+3. From scale-residual, all the points kind of randomly scattered. a bit linear pattern but not too bad.
+4. From residual-leverage plot, we don't see influential points which means not many outliers or leverage points. There maybe some points in upper right corner and lower right coner but they are far away from cook's distance which means they are not influential to our model. 
+
+dfbetas and hatvalues outputs are also consistent to above plot4. From the outputs, we don't see outliers with high residuals and we do see points that are suspicious to be leverage points.
+
+
+- Last, we'll do a model using all the variables and have a comparison to our fit.chosen.
+```{r}
+fit.all <- lm(mpg ~ ., data=mtcars)
+anova(fit.chosen, fit.all)
+```
+So we see that our chosen model is not significant different from fit.call with all the variables. That means that we did not omitt necessary variables causing bias. At the same time, we did not included unnecessary variable causing model variance inflation.
+
+In one word, we may find a "useful"" model so far. (As Brain said, all models are wrong, some models are useful...)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

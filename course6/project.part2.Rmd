@@ -1,0 +1,48 @@
+---
+title: "Course 6, project part 2"
+output: html_document
+author: Feng Li
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Overview
+
+This is the second portion of the course 6 project, we're going to analyze the ToothGrowth data in the R datasets package.
+
+1. Load the ToothGrowth data and perform some basic exploratory data analysis
+2. Provide a basic summary of the data.
+3. Use confidence intervals and/or hypothesis tests to compare tooth growth by supp and dose. (Only use the techniques from class, even if there's other approaches worth considering)
+4. State your conclusions and the assumptions needed for your conclusions.
+
+## Load data and perform basic exploratory data analysis
+
+```{r}
+library(datasets)
+data(ToothGrowth)
+
+dim(ToothGrowth)
+str(ToothGrowth)
+head(ToothGrowth)
+
+summary(ToothGrowth)
+```
+And we'll do some plots for a better view.
+
+```{r}
+library(ggplot2)
+g <- ggplot(ToothGrowth, aes(supp, len)) +
+    geom_boxplot(aes(fill=dose)) + xlab("Dose Amount") + ylab("Tooth Length") + facet_grid(~ supp) +     ggtitle("Tooth Length vs. Dose Amount \nby Delivery Method") + 
+    theme(plot.title = element_text(lineheight=.8, face="bold"))
+
+g
+```
+
+
+
+
+
+
+

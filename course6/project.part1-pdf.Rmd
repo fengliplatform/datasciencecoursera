@@ -1,0 +1,88 @@
+---
+title: "Course 6, Project part 1"
+author: "Feng Li"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Overview
+In this project I will investigate the exponential distribution in R and compare it with the Central Limit Theorem(CLT). CLT tells us that sample mean distribution is a normal distribution when sample size is large enough (for example >30). Expected value of sample mean distribution is used to estimate population mean. Sample mean variance is popolation variance divied by sample size. 
+
+
+## Simulations
+We'll generate 1000 exponential distribution samples with each sample size of 40. We'll set lambda to 0.2 as required.
+
+```{r}
+n <- 40
+lambda <- 0.2
+exp.sample.means <- NULL
+for (i in 1:1000) {
+    exp.sample <- rexp(n, lambda)
+    mean(exp.sample)
+    exp.sample.means <- c(exp.sample.means, mean(exp.sample))
+}
+dat <- data.frame(x=exp.sample.means)
+```
+
+## Sample Mean versus Theoretical Mean
+Mean of sample means:
+```{r}
+sample.mean <- mean(exp.sample.means)
+sample.mean
+```
+
+Exponential distribution has a theoretical mean of 1/lambda.
+```{r}
+theoretical.mean <- 1 / lambda
+theoretical.mean
+```
+
+So we can see what CLT tells, the sample mean `r sample.mean` can be used to estimate theoretical mean `r theoretical.mean`.
+
+We can plot sample mean distribution as following. X axis is values of sample means and Y axis is the counts of each value(Frequency). The distribution is centered at sample mean `r sample.mean` which is highlighted with the red line. The theoretical mean `r theoretical.mean` is highlighted with the green line. 
+
+```{r}
+library(ggplot2)
+g <- ggplot(dat, aes(x = x)) + 
+     geom_histogram(fill="blue", col="black", binwidth = 0.2) +
+     ggtitle("Sample Mean Distribution of Exponential distribution") +
+     xlab("Sample Mean") +
+     ylab("Frequency")
+g <- g + geom_vline(xintercept = sample.mean,  col = "red")
+g <- g + geom_vline(xintercept = theoretical.mean, col = "green")
+g
+```
+
+
+## Sample Variance versus Theoretical Variance
+Sample variance can be calculated as following:
+```{r}
+sample.var <- var(exp.sample.means)
+sample.var
+```
+Theoretical standard deviation of a exponential population is 1/lambda. so Theoretical variance can be calculated. As CLT tells us, sample variance is population variance divided by sample size. We can calculate theoretical sample variance as following:
+```{r}
+theoretical.sd <- 1 / lambda
+theoretical.var.population <- theoretical.sd ^ 2
+
+theoretical.var.sample <- theoretical.var.population / n
+theoretical.var.sample
+```
+As we can see, sample variance `r sample.var` is very close to theoretical variance `r theoretical.var.sample`
+
+## Distribution
+A Q–Q plot is used to compare the shapes of distributions - commonly used to compare a data set to a theoretical model. If the two distributions being compared are similar, the points in the Q–Q plot will approximately lie on the line y = x.
+We'll use qqnorm and qqline to plot our sample mean distribution compared with normal distribution. We can see they are quite similar in terms of quantiles against each other. So we can say our sample mean distribution is very close to normal distribution.
+```{r}
+qqnorm(exp.sample.means) 
+qqline(exp.sample.means)
+```
+
+## Refrences
+1. https://en.wikipedia.org/wiki/Q%E2%80%93Q_plot
+
+
+
