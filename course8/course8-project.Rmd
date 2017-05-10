@@ -1,0 +1,161 @@
+---
+title: "Course8 project"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Synopsis
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: <http://groupware.les.inf.puc-rio.br/har>. 
+
+The request of course8 project is to predict the manner in which they did the exercise. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. 
+
+## Load Data and have a quick look
+
+```{r cache=TRUE}
+train.url <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+test.url <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+setwd("~/course/ds_coursera/course8/repo/course8")
+download.file(train.url, destfile="train.csv", method="curl")
+download.file(test.url, destfile="test.csv", method="curl")
+
+train <- read.csv("train.csv", na.strings=c("NA","#DIV/0!",""), stringsAsFactors = FALSE)
+test <- read.csv("test.csv", na.strings=c("NA","#DIV/0!",""), stringsAsFactors = FALSE)
+
+dim(train)
+dim(test)
+
+#str(train)
+#summary(train)
+```
+Note, the csv files were loaded without na.strings option at the first time. After some analysis to the data, na.string option was added to recognize missing values properly. 
+
+
+## Data cleaning tasks
+So now we know, the data is kind of messy - with lots of values are missing. We'll do data cleaning before fitting any models. We'll need to do the same cleaning to both train and test data sets.
+
+1. Clean irrelevant variables
+- the first column is just id so we'll remove it.
+- check "user_name"" shows there are different observations to different users. so we'll keep it.
+- there are three columns about the timestamp. We'll remove the two "raw" timestamp variables.
+
+2. Clean variables with almost zero variance
+- As we know zero variance or near zeor variance variables will not contribute to model build. we'll remove those variables as well.
+
+3. Clean variables with lots of NA values
+- for variables with more than 50% values missing, we'll remove those variables
+- for other missing values we'll try to do imputation
+
+4. Check if need to do imputation
+
+```{r}
+library(caret)
+
+# 1. remove id colum and two raw timestamp columns
+train.new <- train[, c(-1, -3, -4)]
+test.new <- test[, c(-1,-3, -4)]
+
+# remove near zero variance columns
+nzv <- nearZeroVar(train.new, saveMetrics = TRUE)
+#nzv
+train.new <- train.new[, nzv$nzv == FALSE]
+test.new <- test.new[, nzv$nzv == FALSE]
+
+# remove columns that hold more than 50% of NA values.
+anyNA(train.new)
+anyNA(test.new)
+
+minor.missing.train <- nrow(train.new) * 0.5
+minor.missing.test <- nrow(test.new) * 0.5
+train.new <- train.new[, colSums(is.na(train.new)) < minor.missing.train ]
+test.new <- test.new[, colSums(is.na(test.new)) < minor.missing.test ]
+anyNA(train.new)
+anyNA(test.new)
+
+# impute: no need to do imputation as there are no NA values already.
+
+```
+
+## Split train data set to training and testing sub-sets so we can estimate out ot sample error
+```{r}
+set.seed(1234)
+inTrain <- createDataPartition(train.new$classe, p=0.7, list=FALSE)
+train.new.training <- train.new[inTrain,]
+train.new.testing <- train.new[-inTrain,]
+```
+
+
+## Data preprocessing
+We found that some variables are skewed. So perform pre-processing before fitting models. We'll do a standardization pre-processing and also do "BoxCox" to normalize the distribution. 
+
+```{r}
+hist(train.new$gyros_dumbbell_z)
+
+#preObj <- preProcess(train.new, method=c("center","scale", "BoxCox"))
+#preObj <- preProcess(train.new, method=c("center","scale"))
+#train.new <- predict(preObj, train.new)
+#test.new <- predict(preObj, test.new)
+
+preObj <- preProcess(train.new.training, method=c("center","scale"))
+train.new.training <- predict(preObj, train.new.training)
+train.new.testing <- predict(preObj, train.new.testing)
+
+# do same pre-process to test data set
+test.new <- predict(preObj, test.new)
+
+```
+
+
+## Choose models
+Ok, so finally we are ready to build our models. As we learned from the course - bagging and boosting are two very important aproaches to get better predictive results. We'll use random forest model and generalized boosted regression model. Also in this project we'll just use default tuning from the models.
+
+We'll use 5-fold crooss validation to train both of our models. 10-fold CV is widely used but requires more computing power/time than my current laptop. This can be easily implemented in caret package.
+
+### Use Random Forest Bagging algorithm
+```{r cache=TRUE}
+library(randomForest)
+
+train.control <- trainControl(method="cv", number=5)
+
+rf.fit <- train(classe~., data=train.new.training, 
+                method="rf",
+                trControl=train.control)
+
+rf.fit
+plot(rf.fit)
+
+# do prediction to testing subset and estimate out of sample error
+rf.pred <- predict(rf.fit, newdata=train.new.testing)
+confusionMatrix(rf.pred, train.new.testing$classe)
+```
+
+### Use Generalized Boosted Regression Models (gbm)
+```{r cache=TRUE}
+train.control <- trainControl(method="cv", number=5)
+
+gbm.fit <- train(classe~., data=train.new.training, 
+                method="gbm",
+                trControl=train.control,
+                verbose=FALSE)
+
+gbm.fit
+plot(gbm.fit)
+
+gbm.pred <- predict(gbm.fit, newdata=train.new.testing)
+confusionMatrix(gbm.pred, train.new.testing$classe)
+```
+
+## Predict on test data set to get final result
+From the out of sameple error results, we choose random forest model as our final model. Let's do the prediction to test data set.
+
+```{r}
+rf.pred.final <- predict(rf.fit, newdata=test.new)
+rf.pred.final
+```
+
+
+
