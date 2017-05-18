@@ -101,6 +101,7 @@ full.sample.dtm2.m <- as.matrix(full.sample.dtm2.new)
 full.sample.frequency2 <- colSums(full.sample.dtm2.m)
 full.sample.frequency2.sort <- sort(full.sample.frequency2, decreasing = TRUE)
 save(full.sample.frequency2.sort, file="full.sample.frequency2.sort.RData")
+head(full.sample.frequency2.sort)
 
 ngram.tokenizer.3 <- function (x) NGramTokenizer(x, Weka_control(min=3, max=3))
 full.sample.dtm3 <- DocumentTermMatrix(full.sample.corpus, control=list(tokenize=ngram.tokenizer.3))
@@ -110,8 +111,8 @@ dim(full.sample.dtm3.new)
 full.sample.dtm3.m <- as.matrix(full.sample.dtm3.new)
 full.sample.frequency3 <- colSums(full.sample.dtm3.m)
 full.sample.frequency3.sort <- sort(full.sample.frequency3, decreasing = TRUE)
-save(full.sample.frequency2.sort, file="full.sample.frequency3.sort.RData")
-
+save(full.sample.frequency3.sort, file="full.sample.frequency3.sort.RData")
+head(full.sample.frequency3.sort)
 
 # generate data frames for n-grams data
 load("full.sample.frequency1.sort.RData")

@@ -1,0 +1,41 @@
+Coursera Data Science Capstone Project Presentation
+========================================================
+author: Feng Li
+date: May 18, 2017
+autosize: true
+
+Project Summary and Goal
+========================================================
+
+This project is capstone project for Coursera Data Sciense Specilization held by Johns Hopkins University. SwiftKey is corporate partner in this project.
+
+The purpose of this project is to learn and practice text mining and NLP knowledge and skills. We'll start from a text data set, build up algorithms to predict next mostlikely word following given text. To do so, a Shiny application will be created to accept user input and display predicted word.
+
+
+Algorithm Description
+========================================================
+After random sampling the text data set, a corpus data was created and cleaned. Data cleaning approaches include: change to lower case, remove number, remove punctuation, strip whitespaces, remove English endwords.
+
+Based on this, tokenization was conducted to create bi-gram and tri-gram data matrixes. 
+
+For example,  
+Top 5 bi-gram words are: "right now", "dont know", "last year",  "new york", "cant wait"    
+Top 5 tri-gram words are: "happy mothers day", "cant wait see", "new york city", "let us know", "world war ii"   
+
+Further more, frequency data tables are created respectively and thus being used for prediction.
+
+
+Shiny App Description
+========================================================
+This app accept user input text at left sidebar and display the predicted next word on right panel. For example, input "happy" and press Enter, "birthday" will be predicted. Input "let us", "know" will be predicted. 
+The app takes input words and match them in frequency data table to find the most likely next word.
+
+![app](./app.png)
+
+
+Additional Information
+========================================================
+- App is hosted on Shiny server: https://fengliplatform.shinyapps.io/theapp/
+- Source code on Github: https://github.com/fengliplatform/datasciencecoursera/tree/master/capstone
+
+
