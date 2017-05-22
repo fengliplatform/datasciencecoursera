@@ -10,6 +10,7 @@
 library(shiny)
 library(stringr)
 library(stringi)
+library(tm)
 
 trigram.df <- readRDS(file="./data/trigram.RDS")
 bigram.df <- readRDS(file="./data/bigram.RDS")
@@ -49,6 +50,16 @@ shinyServer(function(input, output) {
             } else if (text.length == 2) {
                 result <- subset(trigram.df, X==cleanText, select="Y")
                 result2 <- as.character(result[1,])
+                if(is.na(result2)) {
+                    text.new <- unlist(strsplit(cleanText, split=" "))
+                    text.length2 <- length(text.new)
+                    text.last <- text.new[text.length2]
+                    
+                    result <- subset(bigram.df, X==text.last, select="Y")
+                    result2 <- as.character(result[1,])
+                } else {
+                    result2
+                }
             } else if (text.length == 1) {
                 result <- subset(bigram.df, X==cleanText, select="Y")
                 result2 <- as.character(result[1,])
